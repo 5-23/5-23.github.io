@@ -84,6 +84,10 @@ export const translations = {
     ],
     achievements: [
       {
+        date: "08.28.2026",
+        title: "JunctionX Korea Second Place"
+      },
+      {
         date: "01.14.2026",
         title: "Ja CoY Local First Place",
         href: "https://www.getnews.co.kr/news/articleView.html?idxno=857155",
