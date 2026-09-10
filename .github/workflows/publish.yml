@@ -1,0 +1,62 @@
+name: Publish build to publish branch
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-branch
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - run: corepack enable
+
+      - run: yarn install --immutable
+
+      - run: yarn typecheck
+
+      - run: yarn build
+
+      - name: Push build output to publish branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          touch dist/.nojekyll
+          cd dist
+
+          git init -q
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote add origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if git ls-remote --exit-code --heads origin publish >/dev/null 2>&1; then
+            git fetch --no-tags --quiet origin publish
+            git reset --soft FETCH_HEAD
+          else
+            echo "publish branch does not exist yet - it will be created."
+          fi
+
+          git add -A
+
+          if git rev-parse --verify --quiet HEAD >/dev/null && git diff --cached --quiet; then
+            echo "Build output is unchanged - nothing to publish."
+            exit 0
+          fi
+
+          git commit -q -m "Publish build from ${GITHUB_SHA}"
+          git push --quiet origin HEAD:publish
